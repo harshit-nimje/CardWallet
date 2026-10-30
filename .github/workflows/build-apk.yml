@@ -27,16 +27,20 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Ensure Keystores Exist for CI Build
+      - name: Ensure Keystores & Env Files Exist for CI Build
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
+          touch .env
           if [ ! -f "debug.keystore" ]; then
             keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug, O=Android, C=US"
           fi

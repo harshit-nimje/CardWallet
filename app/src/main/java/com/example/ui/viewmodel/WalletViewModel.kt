@@ -44,8 +44,7 @@ sealed interface AiFinderUiState {
 enum class CardSortOrder {
     RECENT,
     NAME_ASC,
-    COMPANY_ASC,
-    FAVORITES
+    COMPANY_ASC
 }
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
@@ -65,13 +64,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     fun continueAsGuest() {
         prefs.edit().putBoolean("is_guest_mode", true).apply()
         _isGuestMode.value = true
-        val hasSeeded = prefs.getBoolean("seeded_guest_starters", false)
-        if (!hasSeeded) {
-            prefs.edit().putBoolean("seeded_guest_starters", true).apply()
-            viewModelScope.launch {
-                repository.populateStarterCardsIfEmpty(0)
-            }
-        }
     }
 
     fun exitGuestMode() {
@@ -125,9 +117,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             CardSortOrder.RECENT -> filtered.sortedByDescending { it.createdAt }
             CardSortOrder.NAME_ASC -> filtered.sortedBy { it.name.lowercase() }
             CardSortOrder.COMPANY_ASC -> filtered.sortedBy { it.company.lowercase() }
-            CardSortOrder.FAVORITES -> filtered.sortedWith(
-                compareByDescending<BusinessCard> { it.isFavorite }.thenByDescending { it.createdAt }
-            )
         }
     }.stateIn(
         scope = viewModelScope,
@@ -296,19 +285,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                 } else card
             }
             _rawCards.value = processedCards
-            val uid = _currentUser.value?.uid ?: "default"
-            val key = "seeded_starters_$uid"
-            val hasSeeded = prefs.getBoolean(key, false)
-            if (processedCards.isEmpty() && !hasSeeded) {
-                prefs.edit().putBoolean(key, true).apply()
-                viewModelScope.launch {
-                    try {
-                        repository.populateStarterCardsIfEmpty(0)
-                    } catch (e: Exception) {
-                        Log.e("WalletVM", "Error populating starters", e)
-                    }
-                }
-            }
             CardsUiState.Success(processedCards)
         }
         .catch { error ->
@@ -320,16 +296,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = CardsUiState.Loading
         )
-
-    fun seedSampleCards() {
-        viewModelScope.launch {
-            try {
-                repository.populateStarterCardsIfEmpty(0)
-            } catch (e: Exception) {
-                Log.e("WalletVM", "Error seeding sample cards", e)
-            }
-        }
-    }
 
     // AI Finder state
     private val _aiFinderState = MutableStateFlow<AiFinderUiState>(AiFinderUiState.Idle)
@@ -373,22 +339,6 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         _sortOrder.value = order
     }
 
-    fun toggleFavorite(id: String, currentFavorite: Boolean) {
-        val targetFav = !currentFavorite
-        val currentList = _rawCards.value.toMutableList()
-        val index = currentList.indexOfFirst { it.id == id }
-        if (index != -1) {
-            currentList[index] = currentList[index].copy(isFavorite = targetFav)
-            _rawCards.value = currentList
-        }
-        viewModelScope.launch {
-            try {
-                repository.toggleFavorite(id, currentFavorite)
-            } catch (e: Exception) {
-                Log.e("WalletVM", "Failed to toggle favorite", e)
-            }
-        }
-    }
 
     fun deleteCard(cardId: String) {
         viewModelScope.launch {
@@ -603,10 +553,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun loadSampleCardForScan(isBack: Boolean) {
-        val sampleBitmap = CardOcrHelper.createSampleCardBitmap(isBack)
-        processScanBitmap(sampleBitmap, isBack)
-    }
+
 
     fun updateDraftCard(card: BusinessCard) {
         _draftCard.value = card

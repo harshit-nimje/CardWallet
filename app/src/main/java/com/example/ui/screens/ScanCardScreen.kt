@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -55,8 +56,10 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Place
@@ -89,6 +92,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -117,6 +121,8 @@ import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.PastelLavender
 import com.example.ui.theme.PastelMint
 import com.example.ui.theme.PastelSand
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.WalletViewModel
 import java.util.concurrent.Executors
 
@@ -734,13 +740,15 @@ fun ScanCardScreen(
                     }
                 } else if (currentBitmap != null) {
                     // Static Captured Preview with Edit / Rotate / Scale Controls
-                    var previewScale by remember { mutableStateOf(1f) }
-                    var previewOffsetX by remember { mutableStateOf(0f) }
-                    var previewOffsetY by remember { mutableStateOf(0f) }
+                    var previewScale by remember { mutableFloatStateOf(1f) }
+                    var previewOffsetX by remember { mutableFloatStateOf(0f) }
+                    var previewOffsetY by remember { mutableFloatStateOf(0f) }
+                    var straightenAngle by remember { mutableFloatStateOf(0f) }
+                    var trimMarginPercent by remember { mutableFloatStateOf(0f) }
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Surface(
                             modifier = Modifier
@@ -762,12 +770,14 @@ fun ScanCardScreen(
                                             scaleY = previewScale
                                             translationX = previewOffsetX
                                             translationY = previewOffsetY
+                                            rotationZ = straightenAngle
                                         }
                                         .clip(RoundedCornerShape(18.dp))
                                 )
+
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color.Black.copy(alpha = 0.7f),
+                                    color = Color.Black.copy(alpha = 0.75f),
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
                                         .padding(10.dp)
@@ -784,7 +794,7 @@ fun ScanCardScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = if (activeSideTab == 0) "Front Scanned" else "Back Scanned",
+                                            text = if (activeSideTab == 0) "Front • ${if (isVerticalFacing) "Vertical" else "Horizontal"}" else "Back • ${if (isVerticalFacing) "Vertical" else "Horizontal"}",
                                             color = Color.White,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
@@ -794,70 +804,137 @@ fun ScanCardScreen(
                             }
                         }
 
-                        // Alignment & Crop Edit Toolbar
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Rectification & Alignment Toolbar
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = DarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            IconButton(
-                                onClick = {
-                                    val matrix = Matrix().apply { postRotate(90f) }
-                                    val rotated = Bitmap.createBitmap(currentBitmap, 0, 0, currentBitmap.width, currentBitmap.height, matrix, true)
-                                    viewModel.processScanBitmap(rotated, isBack = activeSideTab == 1)
-                                },
-                                modifier = Modifier.background(DarkSurfaceVariant, CircleShape).size(36.dp)
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
-                            
-                            androidx.compose.material3.Slider(
-                                value = previewScale,
-                                onValueChange = { previewScale = it },
-                                valueRange = 0.5f..2.5f,
-                                modifier = Modifier.weight(1f),
-                                colors = androidx.compose.material3.SliderDefaults.colors(
-                                    thumbColor = PastelMint,
-                                    activeTrackColor = PastelMint
-                                )
-                            )
-                            
-                            Text("Zoom", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                // Top row: Rotate 90, Toggle Orientation, Fit/Crop
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                val matrix = Matrix().apply { postRotate(90f) }
+                                                val rotated = Bitmap.createBitmap(currentBitmap, 0, 0, currentBitmap.width, currentBitmap.height, matrix, true)
+                                                isVerticalFacing = rotated.height > rotated.width
+                                                viewModel.processScanBitmap(rotated, isBack = activeSideTab == 1)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+                                        ) {
+                                            Icon(Icons.Default.RotateRight, contentDescription = "Rotate 90", tint = PastelSand, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Rotate 90°", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
 
-                            OutlinedButton(
-                                onClick = { 
-                                    isPreviewFit = !isPreviewFit 
-                                    val updated = (draftCard ?: currentCard).copy(
-                                        scaleMode = if (isPreviewFit) "fit" else "crop"
+                                        OutlinedButton(
+                                            onClick = {
+                                                isVerticalFacing = !isVerticalFacing
+                                                val updated = (draftCard ?: currentCard).copy(isVertical = isVerticalFacing)
+                                                viewModel.updateDraftCard(updated)
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+                                        ) {
+                                            Text(if (isVerticalFacing) "Vertical (9:16)" else "Horizontal (16:9)", color = PastelLavender, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            isPreviewFit = !isPreviewFit
+                                            val updated = (draftCard ?: currentCard).copy(
+                                                scaleMode = if (isPreviewFit) "fit" else "crop"
+                                            )
+                                            viewModel.updateDraftCard(updated)
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
+                                    ) {
+                                        Text(if (isPreviewFit) "Fit" else "Crop", fontSize = 11.sp, color = PastelMint, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // Straighten fine angle slider (-15° to +15°)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("Straighten", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(68.dp))
+                                    androidx.compose.material3.Slider(
+                                        value = straightenAngle,
+                                        onValueChange = { straightenAngle = it },
+                                        valueRange = -15f..15f,
+                                        modifier = Modifier.weight(1f),
+                                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = PastelSand, activeTrackColor = PastelSand)
                                     )
-                                    viewModel.updateDraftCard(updated)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.height(36.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Text(if (isPreviewFit) "Fit" else "Crop", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                    Text("${straightenAngle.toInt()}°", color = PastelSand, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
+                                }
+
+                                // Trim margin percentage slider (0% to 20%)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("Trim Border", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(68.dp))
+                                    androidx.compose.material3.Slider(
+                                        value = trimMarginPercent,
+                                        onValueChange = { trimMarginPercent = it },
+                                        valueRange = 0f..20f,
+                                        modifier = Modifier.weight(1f),
+                                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = PastelMint, activeTrackColor = PastelMint)
+                                    )
+                                    Text("${trimMarginPercent.toInt()}%", color = PastelMint, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(32.dp))
+                                }
+
+                                // Apply Rectification and Auto-Crop Button
+                                Button(
+                                    onClick = {
+                                        try {
+                                            val matrix = Matrix().apply {
+                                                if (straightenAngle != 0f) postRotate(straightenAngle)
+                                            }
+                                            val rotated = Bitmap.createBitmap(currentBitmap, 0, 0, currentBitmap.width, currentBitmap.height, matrix, true)
+                                            val marginPxX = (rotated.width * (trimMarginPercent / 100f)).toInt()
+                                            val marginPxY = (rotated.height * (trimMarginPercent / 100f)).toInt()
+                                            val cropW = (rotated.width - (2 * marginPxX)).coerceAtLeast(100)
+                                            val cropH = (rotated.height - (2 * marginPxY)).coerceAtLeast(100)
+                                            val cropped = Bitmap.createBitmap(rotated, marginPxX, marginPxY, cropW, cropH)
+                                            viewModel.processScanBitmap(cropped, isBack = activeSideTab == 1)
+                                            straightenAngle = 0f
+                                            trimMarginPercent = 0f
+                                            Toast.makeText(context, "Card rectified & cropped", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = PastelMint,
+                                        contentColor = Color(0xFF022C22)
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth().height(38.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Crop, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Apply Straighten & Edge Crop", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
-                        }
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Align", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            androidx.compose.material3.Slider(
-                                value = previewOffsetX,
-                                onValueChange = { previewOffsetX = it },
-                                valueRange = -200f..200f,
-                                modifier = Modifier.weight(1f)
-                            )
-                            androidx.compose.material3.Slider(
-                                value = previewOffsetY,
-                                onValueChange = { previewOffsetY = it },
-                                valueRange = -200f..200f,
-                                modifier = Modifier.weight(1f)
-                            )
                         }
                     }
                 }
@@ -1168,11 +1245,7 @@ fun ScanCardScreen(
                     val finalName = currentCard.name.ifBlank { "Card #${System.currentTimeMillis() % 1000}" }
                     val isVirt = cardMediumMode == 1 || currentCard.isVirtual
                     val finalTags = currentCard.tags
-                    val finalIsVertical = if (frontBitmap != null) {
-                        frontBitmap!!.height > frontBitmap!!.width
-                    } else {
-                        isVerticalFacing || currentCard.isVertical
-                    }
+                    val finalIsVertical = isVerticalFacing || currentCard.isVertical || (frontBitmap != null && frontBitmap!!.height > frontBitmap!!.width)
                     val finalCard = currentCard.copy(
                         name = finalName,
                         isVirtual = isVirt,

@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -7,6 +12,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,12 +83,60 @@ fun Card3DView(
     initialFlipped: Boolean = false,
     externalTiltX: Float = 0f,
     externalTiltY: Float = 0f,
-    onCardClick: (() -> Unit)? = null,
-    onFavoriteToggle: (() -> Unit)? = null
+    onCardClick: (() -> Unit)? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var isFlipped by remember(initialFlipped) { mutableStateOf(initialFlipped) }
     var dragTiltX by remember { mutableFloatStateOf(0f) }
     var dragTiltY by remember { mutableFloatStateOf(0f) }
+    var sensorTiltX by remember { mutableFloatStateOf(0f) }
+    var sensorTiltY by remember { mutableFloatStateOf(0f) }
+
+    // Haptic soundscape / tactile tap when card is flipped
+    LaunchedEffect(isFlipped) {
+        if (isFlipped != initialFlipped) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
+    // Physical Gyro / Accelerometer sensor parallax
+    DisposableEffect(isInteractive) {
+        if (!isInteractive) return@DisposableEffect onDispose {}
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+            ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+                if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    val rMatrix = FloatArray(9)
+                    SensorManager.getRotationMatrixFromVector(rMatrix, event.values)
+                    val orientation = FloatArray(3)
+                    SensorManager.getOrientation(rMatrix, orientation)
+                    val pitchDeg = Math.toDegrees(orientation[1].toDouble()).toFloat()
+                    val rollDeg = Math.toDegrees(orientation[2].toDouble()).toFloat()
+                    sensorTiltX = (pitchDeg * 0.12f).coerceIn(-4f, 4f)
+                    sensorTiltY = (-rollDeg * 0.12f).coerceIn(-4f, 4f)
+                } else if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                    val ax = event.values[0]
+                    val ay = event.values[1]
+                    sensorTiltY = (-ax * 0.35f).coerceIn(-4f, 4f)
+                    sensorTiltX = (ay * 0.35f).coerceIn(-4f, 4f)
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        if (rotationSensor != null) {
+            sensorManager?.registerListener(listener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+
+        onDispose {
+            sensorManager?.unregisterListener(listener)
+        }
+    }
 
     // Face culling: when flip exceeds 90 degrees, show Back face
     val isBackSideFacing = initialFlipped || (isFlipped && !initialFlipped) // simplified for logic below
@@ -96,7 +153,6 @@ fun Card3DView(
     )
 
     // Dynamic Orientation Detection from Card Metadata and Image Bounds
-    val context = androidx.compose.ui.platform.LocalContext.current
     val isVerticalDetected = remember(card.isVertical, card.frontImageUri, card.backImageUri) {
         if (card.isVertical) {
             true
@@ -131,8 +187,11 @@ fun Card3DView(
     // Face culling: when flip exceeds 90 degrees, show Back face
     val isBackSideFacingActual = animatedFlipY > 90f
 
-    val totalTiltX = (animatedDragX + externalTiltX).coerceIn(-6f, 6f)
-    val totalTiltY = (animatedDragY + externalTiltY).coerceIn(-6f, 6f)
+    val totalTiltX = (animatedDragX + externalTiltX + sensorTiltX).coerceIn(-7f, 7f)
+    val totalTiltY = (animatedDragY + externalTiltY + sensorTiltY).coerceIn(-7f, 7f)
+
+    // Holographic sheen light reflection sweep
+    val sheenSweepOffset = ((totalTiltY * 22f) + (totalTiltX * 14f)).coerceIn(-180f, 180f)
 
     val cardShape = RoundedCornerShape(22.dp)
 
@@ -228,6 +287,25 @@ fun Card3DView(
                 }
             }
         }
+
+        // Holographic Gyro Sheen Light Sweep across Card Surface
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = 0.04f),
+                            Color(0xFFDDD6FE).copy(alpha = 0.12f),
+                            Color(0xFFA7F3D0).copy(alpha = 0.08f),
+                            Color.Transparent
+                        ),
+                        start = androidx.compose.ui.geometry.Offset(x = sheenSweepOffset * 2f, y = 0f),
+                        end = androidx.compose.ui.geometry.Offset(x = (sheenSweepOffset * 2f) + 320f, y = 600f)
+                    )
+                )
+        )
     }
 }
 

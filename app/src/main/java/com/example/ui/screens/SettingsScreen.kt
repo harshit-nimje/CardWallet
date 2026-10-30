@@ -392,15 +392,7 @@ fun SettingsScreen(
                         importInputText = ""
                         showImportDialog = true
                     }
-                    SettingsActionRow(
-                        icon = Icons.Default.Refresh,
-                        title = "Add Sample Business Cards",
-                        subtitle = "Populate template cards across all categories",
-                        actionLabel = "Add"
-                    ) {
-                        viewModel.seedSampleCards()
-                        Toast.makeText(context, "Sample cards added to wallet", Toast.LENGTH_SHORT).show()
-                    }
+
                 }
 
                 // Log Out / Exit Guest Session Button

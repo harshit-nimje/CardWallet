@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.Label
@@ -61,11 +62,14 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
+import com.example.data.export.VCardExporter
+import com.example.ui.components.CardQrDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -156,6 +160,7 @@ fun WalletDeckScreen(
     var batchTagInput by remember { mutableStateOf("") }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
     var cardForMultiPersonContact by remember { mutableStateOf<BusinessCard?>(null) }
+    var cardForQrDialog by remember { mutableStateOf<BusinessCard?>(null) }
 
     val allCards = when (val state = cardsState) {
         is CardsUiState.Success -> state.cards
@@ -237,6 +242,42 @@ fun WalletDeckScreen(
                             }
                         ) {
                             Text("Select All", color = PastelSand, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                val selectedCards = filteredCards.filter { selectedCardIds.contains(it.id) }
+                                if (selectedCards.isNotEmpty()) {
+                                    VCardExporter.shareCardsAsVcf(context, selectedCards, "wallet_cards_${selectedCards.size}.vcf")
+                                }
+                            },
+                            enabled = selectedCardIds.isNotEmpty(),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Export vCards (.vcf)",
+                                tint = if (selectedCardIds.isNotEmpty()) PastelSand else TextMuted
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                val selectedCards = filteredCards.filter { selectedCardIds.contains(it.id) }
+                                if (selectedCards.isNotEmpty()) {
+                                    VCardExporter.shareCardsAsCsv(context, selectedCards, "wallet_cards_export.csv")
+                                }
+                            },
+                            enabled = selectedCardIds.isNotEmpty(),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = "Export CSV",
+                                tint = if (selectedCardIds.isNotEmpty()) PastelMint else TextMuted
+                            )
                         }
 
                         IconButton(
@@ -530,7 +571,7 @@ fun WalletDeckScreen(
                                     Button(
                                         onClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            viewModel.seedSampleCards()
+                                            onNavigateScan()
                                         },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = DarkSurface,
@@ -539,7 +580,7 @@ fun WalletDeckScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, PastelSand.copy(alpha = 0.5f))
                                     ) {
-                                        Text("Add Sample Cards", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text("Scan First Card", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -765,6 +806,10 @@ fun WalletDeckScreen(
                             GoogleContactsHelper.saveContact(context, activeCard)
                             Toast.makeText(context, "Opening contacts...", Toast.LENGTH_SHORT).show()
                         }
+                    },
+                    onShowQr = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        cardForQrDialog = activeCard
                     },
                     onOpenDetail = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1041,6 +1086,14 @@ fun WalletDeckScreen(
                 shape = RoundedCornerShape(16.dp)
             )
         }
+
+        // Quick-Share QR & vCard Generator Dialog
+        cardForQrDialog?.let { qrCard ->
+            CardQrDialog(
+                card = qrCard,
+                onDismiss = { cardForQrDialog = null }
+            )
+        }
     }
 }
 
@@ -1053,6 +1106,7 @@ private fun FloatingActionDock(
     onDismiss: () -> Unit,
     onFlip: () -> Unit,
     onSaveToContacts: () -> Unit,
+    onShowQr: () -> Unit,
     onOpenDetail: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1103,7 +1157,7 @@ private fun FloatingActionDock(
                 }
             }
 
-            // Quick Communication Actions Row (Call, WhatsApp, Email, Flip, Maps)
+            // Quick Communication Actions Row (Call, WhatsApp, Email, Flip, Maps, QR)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1163,13 +1217,22 @@ private fun FloatingActionDock(
 
                 if (card.address.isNotBlank()) {
                     OutlinedButton(
-                        onClick = { GoogleContactsHelper.openAddressInMaps(context, card.address) },
+                        onClick = { GoogleContactsHelper.openDirectionsInMaps(context, card.address) },
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder)
                     ) {
-                        Icon(imageVector = Icons.Default.Place, contentDescription = "Maps", tint = PastelSlate, modifier = Modifier.size(14.dp))
+                        Icon(imageVector = Icons.Default.Place, contentDescription = "Directions", tint = PastelSlate, modifier = Modifier.size(14.dp))
                     }
+                }
+
+                OutlinedButton(
+                    onClick = onShowQr,
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PastelSand.copy(alpha = 0.5f))
+                ) {
+                    Icon(imageVector = Icons.Default.QrCode, contentDescription = "vCard QR", tint = PastelSand, modifier = Modifier.size(14.dp))
                 }
             }
 

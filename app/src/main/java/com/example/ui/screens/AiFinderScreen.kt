@@ -134,8 +134,6 @@ fun AiFinderScreen(
         "Supply chain lead"
     )
 
-    val density = LocalDensity.current
-
     // Animated atmospheric glow in the lower half
     val infiniteTransition = rememberInfiniteTransition(label = "ambientGlow")
     val glowAnimX by infiniteTransition.animateFloat(
@@ -519,7 +517,7 @@ fun AiFinderScreen(
             }
         }
 
-        // Bottom Search Bar at thumb's reach, floating above keyboard without pushing page
+        // Bottom Search Bar at thumb's reach, floating above keyboard without pushing the page or header/chips
         Surface(
             shape = CircleShape,
             color = Color(0xEE16151D),
@@ -530,7 +528,7 @@ fun AiFinderScreen(
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.ime)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(start = 18.dp, end = 18.dp, bottom = 14.dp)
+                .padding(start = 18.dp, end = 18.dp, bottom = 18.dp)
                 .height(58.dp)
         ) {
                 Row(

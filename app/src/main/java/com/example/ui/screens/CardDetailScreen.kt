@@ -36,10 +36,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -85,6 +87,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import com.example.ui.components.CardQrDialog
 import com.example.ui.theme.PastelSand
 import com.example.ui.theme.PastelSky
 import com.example.ui.viewmodel.WalletViewModel
@@ -107,6 +110,7 @@ fun CardDetailScreen(
     }
     var isEditing by remember { mutableStateOf(false) }
     var personToSaveDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showQrDialog by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     val showDistanceEta by viewModel.showDistanceEta.collectAsState()
@@ -470,6 +474,20 @@ fun CardDetailScreen(
                         modifier = Modifier.size(15.dp)
                     )
                 }
+
+                OutlinedButton(
+                    onClick = { showQrDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PastelSand.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode,
+                        contentDescription = "vCard QR",
+                        tint = PastelSand,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
 
             // Lively Pastel Finish Palette Picker
@@ -716,23 +734,45 @@ fun CardDetailScreen(
                                         modifier = Modifier.padding(top = 2.dp)
                                     )
                                 }
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = DarkSurfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clickable {
-                                            GoogleContactsHelper.openAddressInMaps(context, currentCard.address)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = DarkSurfaceVariant,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clickable {
+                                                GoogleContactsHelper.openAddressInMaps(context, currentCard.address)
+                                            }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Place,
+                                                contentDescription = "Open in Maps",
+                                                tint = PastelSand,
+                                                modifier = Modifier.size(20.dp)
+                                            )
                                         }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Place,
-                                            contentDescription = "Open in Maps",
-                                            tint = PastelSand,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = PastelMint.copy(alpha = 0.15f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, PastelMint.copy(alpha = 0.5f)),
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clickable {
+                                                GoogleContactsHelper.openDirectionsInMaps(context, currentCard.address)
+                                            }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Directions,
+                                                contentDescription = "Turn-by-turn Navigation",
+                                                tint = PastelMint,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -792,6 +832,13 @@ fun CardDetailScreen(
                     }
                 },
                 containerColor = DarkSurface
+            )
+        }
+
+        if (showQrDialog) {
+            CardQrDialog(
+                card = currentCard,
+                onDismiss = { showQrDialog = false }
             )
         }
     }

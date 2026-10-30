@@ -296,6 +296,32 @@ object GoogleContactsHelper {
             val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(address))).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            try {
+                context.startActivity(webIntent)
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Opens turn-by-turn navigation / directions directly to address in Google Maps.
+     */
+    fun openDirectionsInMaps(context: Context, address: String) {
+        if (address.isBlank()) return
+        val navUri = Uri.parse("google.navigation:q=" + Uri.encode(address))
+        val mapIntent = Intent(Intent.ACTION_VIEW, navUri).apply {
+            setPackage("com.google.android.apps.maps")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(mapIntent)
+        } catch (e: Exception) {
+            val fallbackUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=" + Uri.encode(address))
+            val webIntent = Intent(Intent.ACTION_VIEW, fallbackUri).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                context.startActivity(webIntent)
+            } catch (_: Exception) {}
         }
     }
 

@@ -108,6 +108,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.play.services.mlkit.text.recognition)
   implementation(libs.play.services.mlkit.barcode.scanning)
+  implementation(libs.zxing.core)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.firebase.firestore)

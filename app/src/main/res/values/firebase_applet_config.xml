@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">ai-studio-android-cardwall-88c6f4aa-ada4-4918-ac3c-1809fae8abc5</string>
+    <string name="recaptcha_site_key" translatable="false">6Ld1uwIuAAAAAAbSMflz16S68OMV2LU12qF3g8XR</string>
+</resources>

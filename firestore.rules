@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidCard(data, userId) {
+      return data.userId == userId
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && (!('company' in data) || (data.company is string && data.company.size() <= 100))
+        && (!('title' in data) || (data.title is string && data.title.size() <= 100))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 50))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 100))
+        && (!('website' in data) || (data.website is string && data.website.size() <= 200))
+        && (!('address' in data) || (data.address is string && data.address.size() <= 200))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 50))
+        && (!('cardColor' in data) || (data.cardColor is string && data.cardColor.size() <= 50))
+        && (!('frontImageUri' in data) || (data.frontImageUri is string && data.frontImageUri.size() <= 500))
+        && (!('backImageUri' in data) || (data.backImageUri is string && data.backImageUri.size() <= 500))
+        && (!('frontTextRaw' in data) || (data.frontTextRaw is string && data.frontTextRaw.size() <= 5000))
+        && (!('backTextRaw' in data) || (data.backTextRaw is string && data.backTextRaw.size() <= 5000))
+        && (!('isFavorite' in data) || data.isFavorite is bool)
+        && (!('tags' in data) || data.tags is list)
+        && (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time))
+        && (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /cards/{cardId} {
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCard(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidCard(request.resource.data, userId);
+      }
+    }
+  }
+}

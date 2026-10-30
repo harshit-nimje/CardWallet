@@ -1,0 +1,6 @@
+{
+  "name": "CardWallet",
+  "description": "Fun fintech wallet and business card scanner with 3D parallax cards, OCR, Google Contacts integration, and AI networking assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

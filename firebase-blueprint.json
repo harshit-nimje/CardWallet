@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "BusinessCard": {
+      "title": "BusinessCard",
+      "description": "A scanned or saved business card with OCR details, images, and networking metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique card document ID" },
+        "userId": { "type": "string", "description": "ID of the user who owns this card" },
+        "name": { "type": "string", "description": "Contact or cardholder full name" },
+        "company": { "type": "string", "description": "Company, organization, or business name" },
+        "title": { "type": "string", "description": "Job title or role" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "description": "Email address" },
+        "website": { "type": "string", "description": "Website URL" },
+        "address": { "type": "string", "description": "Physical office address" },
+        "notes": { "type": "string", "description": "Personal networking notes and meeting context" },
+        "category": { "type": "string", "description": "Business industry or category" },
+        "cardColor": { "type": "string", "description": "Theme gradient or color accent for 3D card display" },
+        "frontImageUri": { "type": "string", "description": "URI or local path to front image of card" },
+        "backImageUri": { "type": "string", "description": "URI or local path to back image of card" },
+        "frontTextRaw": { "type": "string", "description": "Raw OCR text extracted from front of card" },
+        "backTextRaw": { "type": "string", "description": "Raw OCR text extracted from back of card" },
+        "isFavorite": { "type": "boolean", "description": "Whether card is pinned or favorited" },
+        "tags": { "type": "array", "description": "Tags or keywords for quick search" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp created (serverTimestamp)" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp last updated (serverTimestamp)" }
+      },
+      "required": ["userId", "name"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/cards/{cardId}": {
+      "schema": { "$ref": "#/entities/BusinessCard" },
+      "description": "Collection of business cards owned by the authenticated user"
+    }
+  }
+}

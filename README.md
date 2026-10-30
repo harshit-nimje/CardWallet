@@ -74,6 +74,14 @@ cd card-wallet-ai
 The compiled APK will be generated at:
 `app/build/outputs/apk/debug/app-debug.apk`
 
+### ⚡ Automated Builds with GitHub Actions
+
+A pre-configured GitHub Actions workflow (`.github/workflows/build-apk.yml`) is included in the project:
+1. Go to your GitHub repository -> **Actions** tab.
+2. Select **Build Android APK** from the left sidebar.
+3. Click **Run workflow** -> **Run workflow**.
+4. Once completed (~2 minutes), click on the workflow run to download the generated **`CardWallet-AI-Debug-APK`** artifact directly!
+
 ---
 
 ## 🏷️ GitHub Release Instructions
@@ -82,7 +90,7 @@ The compiled APK will be generated at:
 2. Tag version: `v1.0.0`
 3. Target branch: `main`
 4. Release title: `Card Wallet AI v1.0.0 — Production Release`
-5. Attach the pre-built APK file located at `app/build/outputs/apk/debug/app-debug.apk`.
+5. Attach the pre-built APK artifact downloaded from GitHub Actions.
 6. Click **Publish release**.
 
 ---
